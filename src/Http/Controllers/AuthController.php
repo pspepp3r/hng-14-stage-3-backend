@@ -90,8 +90,8 @@ final class AuthController
                     'samesite' => 'Lax'
                 ]);
 
-                // Redirect to frontend dashboard
-                header("Location: " . getenv('FRONTEND_URL') . "/dashboard");
+                // Redirect to frontend dashboard (SPA hash routing)
+                header("Location: " . getenv('FRONTEND_URL') . "/#dashboard");
                 exit;
             }
 
