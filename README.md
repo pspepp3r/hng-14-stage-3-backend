@@ -5,6 +5,7 @@ A secure Profile Intelligence System with GitHub OAuth + PKCE, RBAC, and advance
 ## System Architecture
 
 The system is built with a decoupled architecture:
+
 - **Core:** PHP 8.3 with Vanilla PHP (No heavy frameworks for maximum performance).
 - **Authentication:** GitHub OAuth with PKCE for secure cross-interface sessions.
 - **Session Management:** JWT (Access + Refresh tokens) for stateless authentication.
@@ -31,6 +32,7 @@ The system is built with a decoupled architecture:
 ## Role Enforcement Logic
 
 The system enforces two roles:
+
 - **Admin:** Full access to all endpoints (Create, Read, Delete, Search, Export).
 - **Analyst:** Read-only access (Read, Search, Export).
 - **Implementation:** A dedicated `RbacMiddleware` checks the `role` claim in the JWT before allowing access to mutation endpoints (`POST`, `DELETE`).
@@ -38,6 +40,7 @@ The system enforces two roles:
 ## Natural Language Parsing
 
 Demographics are extracted from plain English queries using regex-based pattern matching:
+
 - **Gender:** male, female, etc.
 - **Age Groups:** child, teenager, adult, senior.
 - **Countries:** ISO codes and full names matched against database lookups.
@@ -45,16 +48,16 @@ Demographics are extracted from plain English queries using regex-based pattern 
 ## API Endpoints
 
 | Method | Endpoint | Description | Role |
-|--------|----------|-------------|------|
+| -------- | ---------- | ------------- | ------ |
 | GET | `/auth/github` | Initiate GitHub OAuth | Public |
 | GET | `/auth/github/callback` | OAuth Callback | Public |
 | POST | `/auth/refresh` | Refresh JWT tokens | Public |
 | POST | `/auth/logout` | Logout | Public |
 | GET | `/api/profiles` | List profiles | Analyst |
 | POST | `/api/profiles` | Create profile | Admin |
-| GET | `/api/profiles/{id}`| Get single profile | Analyst |
-| DELETE | `/api/profiles/{id}`| Delete profile | Admin |
-| GET | `/api/profiles/search`| NL Search | Analyst |
-| GET | `/api/profiles/export`| CSV Export | Analyst |
+| GET | `/api/profiles/{id}` | Get single profile | Analyst |
+| DELETE | `/api/profiles/{id}` | Delete profile | Admin |
+| GET | `/api/profiles/search` | NL Search | Analyst |
+| GET | `/api/profiles/export` | CSV Export | Analyst |
 
 **Note:** All `/api/*` requests require `X-API-Version: 1` header and a valid Bearer token.
