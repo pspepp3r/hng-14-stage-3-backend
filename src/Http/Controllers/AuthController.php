@@ -151,6 +151,36 @@ final class AuthController
         Response::success(['message' => 'Logged out successfully'])->send();
     }
 
+    public function updateRole(string $targetUserId, array $decodedToken): void
+    {
+        $newRole = $_POST['role'] ?? \json_decode(\file_get_contents('php://input'))->role ?? null;
+
+        if (!in_array($newRole, ['admin', 'analyst'])) {
+            Response::error('Invalid role. Must be admin or analyst', 400)->send();
+            return;
+        }
+
+        $stmt = $this->authService->getDb()->prepare("UPDATE users SET role = ? WHERE id = UNHEX(REPLACE(?, '-', ''))");
+        $stmt->execute([$newRole, $targetUserId]);
+
+        if ($stmt->rowCount() === 0) {
+            Response::error('User not found or role unchanged', 404)->send();
+            return;
+        }
+
+        Response::success(['message' => "User role updated to $newRole"])->send();
+    }
+
+    public function me(array $decodedToken): void
+    {
+        $user = $this->authService->findUserById($decodedToken['sub']);
+        if (!$user) {
+            Response::error('User not found', 404)->send();
+            return;
+        }
+        Response::success($user)->send();
+    }
+
     private function exchangeCodeForToken(string $code, string $clientId, string $clientSecret): array
     {
         $ch = curl_init('https://github.com/login/oauth/access_token');

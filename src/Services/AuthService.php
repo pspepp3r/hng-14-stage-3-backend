@@ -25,6 +25,11 @@ final class AuthService
         $this->refreshExpiry = (int)(getenv('JWT_REFRESH_EXPIRY') ?: 300);
     }
 
+    public function getDb(): PDO
+    {
+        return $this->db;
+    }
+
     public function generateTokens(array $user): array
     {
         $now = time();

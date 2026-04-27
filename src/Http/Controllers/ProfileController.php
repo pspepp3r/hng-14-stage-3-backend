@@ -164,24 +164,26 @@ final class ProfileController
     {
         try {
             $filters = [];
-            // Reuse filtering logic (DRY later if needed)
-            if (isset($_GET['gender'])) $filters['gender'] = (string)$_GET['gender'];
-            if (isset($_GET['country_id'])) $filters['country_id'] = (string)$_GET['country_id'];
-            if (isset($_GET['age_group'])) $filters['age_group'] = (string)$_GET['age_group'];
-            
-            $sortBy = $_GET['sort_by'] ?? 'created_at';
-            $order = $_GET['order'] ?? 'desc';
+            $q = $_GET['q'] ?? null;
 
-            // Get all matching profiles without pagination limit for export (or a very high one)
-            $result = $this->profileService->getProfilesWithPagination(
-                $filters,
-                $sortBy,
-                $order,
-                1,
-                1000 // High limit for export
-            );
+            if ($q) {
+                // If NL search is used, get profiles via search logic
+                $result = $this->profileService->searchProfiles($q);
+                $profiles = $result['profiles'];
+            } else {
+                // Otherwise use standard filters
+                if (isset($_GET['gender'])) $filters['gender'] = (string)$_GET['gender'];
+                if (isset($_GET['country_id'])) $filters['country_id'] = (string)$_GET['country_id'];
+                if (isset($_GET['age_group'])) $filters['age_group'] = (string)$_GET['age_group'];
+                
+                $sortBy = $_GET['sort_by'] ?? 'created_at';
+                $order = $_GET['order'] ?? 'desc';
 
-            $profiles = $result['profiles'];
+                $result = $this->profileService->getProfilesWithPagination(
+                    $filters, $sortBy, $order, 1, 10000 // Increased to 10k for 'all'
+                );
+                $profiles = $result['profiles'];
+            }
             
             $filename = "profiles_" . date('Y-m-d_H-i-s') . ".csv";
             

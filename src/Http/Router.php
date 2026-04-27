@@ -70,7 +70,19 @@ final class Router
                 // 2. Authentication
                 $user = $this->authMiddleware->handle();
 
-                // 3. Rate Limiting (per user)
+                // 3. Me endpoint
+                if ($method === 'GET' && $path === '/api/me') {
+                    $this->authController->me($user);
+                    return;
+                }
+
+                if ($method === 'PATCH' && preg_match('#^/api/users/([a-f0-9\-]+)/role$#i', $path, $matches)) {
+                    $this->rbacMiddleware->enforce($user, 'admin');
+                    $this->authController->updateRole($matches[1], $user);
+                    return;
+                }
+
+                // 4. Rate Limiting (per user)
                 $this->rateLimitMiddleware->handle('user_' . $user['sub'], 60, 60);
 
                 // Export route
