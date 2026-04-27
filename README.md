@@ -1,151 +1,60 @@
-# HNG-14 Stage 2: Intelligence Query Engine
+# Insighta Labs+ Backend
 
-A RESTful API for querying demographic profiles with advanced filtering, sorting, pagination, and natural language search.
+A secure Profile Intelligence System with GitHub OAuth + PKCE, RBAC, and advanced demographic querying.
 
-## Features
+## System Architecture
 
-- 5 API endpoints (Create, Read, Update, Delete, Search)
-- Advanced filtering (gender, country, age group, age range, probability thresholds)
-- Sorting & pagination with configurable limits
-- Natural language search (rule-based pattern matching)
-- UUID v7 primary keys
-- MySQL database with optimized indexes
+The system is built with a decoupled architecture:
+- **Core:** PHP 8.3 with Vanilla PHP (No heavy frameworks for maximum performance).
+- **Authentication:** GitHub OAuth with PKCE for secure cross-interface sessions.
+- **Session Management:** JWT (Access + Refresh tokens) for stateless authentication.
+- **Database:** MySQL with UUID v7 primary keys and optimized indexing.
+- **Security:** CSRF protection, HTTP-only cookies, Rate limiting, and Role-Based Access Control (RBAC).
 
-## Quick Start
+## Authentication Flow (GitHub OAuth + PKCE)
 
-### Installation
+1. **Initiation:** The client (CLI or Web) redirects the user to GitHub's Authorization endpoint.
+2. **PKCE (CLI):** The CLI generates a `code_verifier` and `code_challenge`.
+3. **Callback:** GitHub redirects back to the backend (Web) or local server (CLI) with an authorization `code`.
+4. **Exchange:** The backend exchanges the `code` for a GitHub access token.
+5. **Identification:** The backend retrieves the user's GitHub profile and identifies or creates the user in the local database.
+6. **Token Issuance:** The backend issues two JWTs:
+   - **Access Token:** 3-minute expiry (stored in HTTP-only cookie or memory).
+   - **Refresh Token:** 5-minute expiry (stored in HTTP-only cookie or secure local storage).
 
-```bash
-git clone https://github.com/pspepp3r/hng-14-task-2.git
-cd hng-14-task-2
-composer install
-composer migrate
-composer migrate seed data/seed_profiles.json
-composer start --timeout=0
-```
+## Token Handling Approach
 
-### API Base URL
+- **Short-lived Access Tokens:** Minimize the window of risk if a token is intercepted.
+- **Refresh Flow:** When an access token expires, the client calls `/auth/refresh` with the refresh token to receive a new pair.
+- **Invalidation:** The `/auth/logout` endpoint clears cookies and invalidates the session client-side.
 
-```txt
-http://localhost:8000/api
-```
+## Role Enforcement Logic
+
+The system enforces two roles:
+- **Admin:** Full access to all endpoints (Create, Read, Delete, Search, Export).
+- **Analyst:** Read-only access (Read, Search, Export).
+- **Implementation:** A dedicated `RbacMiddleware` checks the `role` claim in the JWT before allowing access to mutation endpoints (`POST`, `DELETE`).
+
+## Natural Language Parsing
+
+Demographics are extracted from plain English queries using regex-based pattern matching:
+- **Gender:** male, female, etc.
+- **Age Groups:** child, teenager, adult, senior.
+- **Countries:** ISO codes and full names matched against database lookups.
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/profiles` | Create profile by name |
-| GET | `/profiles` | Get profiles with filters, sorting, pagination |
-| GET | `/profiles/{id}` | Get single profile |
-| DELETE | `/profiles/{id}` | Delete profile |
-| GET | `/profiles/search` | Search via natural language query |
+| Method | Endpoint | Description | Role |
+|--------|----------|-------------|------|
+| GET | `/auth/github` | Initiate GitHub OAuth | Public |
+| GET | `/auth/github/callback` | OAuth Callback | Public |
+| POST | `/auth/refresh` | Refresh JWT tokens | Public |
+| POST | `/auth/logout` | Logout | Public |
+| GET | `/api/profiles` | List profiles | Analyst |
+| POST | `/api/profiles` | Create profile | Admin |
+| GET | `/api/profiles/{id}`| Get single profile | Analyst |
+| DELETE | `/api/profiles/{id}`| Delete profile | Admin |
+| GET | `/api/profiles/search`| NL Search | Analyst |
+| GET | `/api/profiles/export`| CSV Export | Analyst |
 
-### GET /api/profiles (Query Parameters)
-
-```txt
-gender                 - male, female
-country_id             - ISO code (NG, US, etc)
-age_group              - child, teenager, adult, senior
-min_age                - integer (min age)
-max_age                - integer (max age)
-min_gender_probability - float 0-1
-min_country_probability- float 0-1
-sort_by                - age, created_at, gender_probability
-order                  - asc, desc
-page                   - integer (default: 1)
-limit                  - integer (default: 10, max: 50)
-```
-
-**Example:**
-
-```txt
-GET /api/profiles?gender=male&country_id=NG&min_age=25&sort_by=age&page=1&limit=10
-```
-
-### GET /api/profiles/search (Natural Language)
-
-**Query:**
-
-```txt
-q=young males from nigeria
-q=females above 30
-q=adult males from kenya
-```
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "page": 1,
-  "limit": 10,
-  "total": 156,
-  "data": [...]
-}
-```
-
-## Natural Language Parser
-
-Extracts demographics from plain English queries using regex patterns.
-
-**Supported Keywords:**
-
-- Gender: male, female, man, woman
-- Age Groups: child, teenager, adult, senior
-- Age Descriptors: young (16-24), old (50+), above/below/ages X-Y
-- Countries: via REST Countries API + database fallback
-
-**Limitations:**
-
-- No complex logic operators (AND, OR, NOT)
-- No fuzzy matching for typos
-- First match wins for conflicting criteria
-
-## Database Seeding
-
-```bash
-# Seed from JSON
-php bin/migrate.php seed data/profiles.json
-
-# Clear and reseed
-php bin/migrate.php reseed data/profiles.json
-
-# Clear all
-php bin/migrate.php truncate
-```
-
-**JSON Format:**
-
-```json
-[
-  {
-    "name": "Emmanuel",
-    "gender": "male",
-    "gender_probability": 0.99,
-    "age": 34,
-    "age_group": "adult",
-    "country_id": "NG",
-    "country_name": "Nigeria",
-    "country_probability": 0.85
-  }
-]
-```
-
-## Error Responses
-
-```json
-{
-  "status": "error",
-  "message": "Error description"
-}
-```
-
-**HTTP Status Codes:**
-
-- 200: Success
-- 201: Created
-- 204: Deleted
-- 400: Bad Request
-- 404: Not Found
-- 422: Invalid Data
-- 500: Server Error
+**Note:** All `/api/*` requests require `X-API-Version: 1` header and a valid Bearer token.
