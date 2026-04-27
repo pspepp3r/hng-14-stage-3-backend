@@ -23,10 +23,10 @@ final class AuthController
         $clientId = getenv('GITHUB_CLIENT_ID');
         $redirectUri = getenv('GITHUB_REDIRECT_URI');
         $state = bin2hex(random_bytes(16));
-        
+
         // In a real app, we'd store the state in session or DB to validate it later.
         // For simplicity here, we'll just redirect.
-        
+
         $url = "https://github.com/login/oauth/authorize?" . http_build_query([
             'client_id' => $clientId,
             'redirect_uri' => $redirectUri,
@@ -55,8 +55,8 @@ final class AuthController
             $clientSecret = $isCli ? getenv('GITHUB_CLI_CLIENT_SECRET') : getenv('GITHUB_CLIENT_SECRET');
 
             // Exchange code for access token
-            $tokenResponse = $this->exchangeCodeForToken($code, $clientId, $clientSecret);
-            
+            $tokenResponse = $this->exchangeCodeForToken($code, $clientId, $clientSecret, $codeVerifier);
+
             if (isset($tokenResponse['error'])) {
                 Response::error('GitHub Auth Failed: ' . ($tokenResponse['error_description'] ?? $tokenResponse['error']), 401)->send();
                 return;
@@ -66,7 +66,7 @@ final class AuthController
 
             // Get user info from GitHub
             $githubUser = $this->getGitHubUser($accessToken);
-            
+
             // Find or create user in our DB
             $user = $this->authService->findOrCreateUser($githubUser);
 
@@ -95,7 +95,6 @@ final class AuthController
                 header("Location: " . getenv('FRONTEND_URL') . "/#dashboard");
                 exit;
             }
-
         } catch (Exception $e) {
             Response::error($e->getMessage(), 500)->send();
         }
@@ -123,7 +122,7 @@ final class AuthController
         }
 
         $tokens = $this->authService->generateTokens($user);
-        
+
         // Update cookies if they exist
         if (isset($_COOKIE['refresh_token'])) {
             setcookie('access_token', $tokens['access_token'], [
@@ -148,7 +147,7 @@ final class AuthController
         // Clear cookies
         setcookie('access_token', '', time() - 3600, '/');
         setcookie('refresh_token', '', time() - 3600, '/');
-        
+
         Response::success(['message' => 'Logged out successfully'])->send();
     }
 
@@ -182,24 +181,31 @@ final class AuthController
             Response::error('User not found', 404)->send();
             return;
         }
-        
+
         // Ensure role is converted to string for JSON output
         if ($user['role'] instanceof UserRole) {
             $user['role'] = $user['role']->value;
         }
-        
+
         Response::success($user)->send();
     }
 
-    private function exchangeCodeForToken(string $code, string $clientId, string $clientSecret): array
+    private function exchangeCodeForToken(string $code, string $clientId, string $clientSecret, ?string $codeVerifier = null): array
     {
-        $ch = curl_init('https://github.com/login/oauth/access_token');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+        $postData = [
             'client_id' => $clientId,
             'client_secret' => $clientSecret,
             'code' => $code
-        ]));
+        ];
+
+        // Include code_verifier for PKCE flow (CLI)
+        if ($codeVerifier) {
+            $postData['code_verifier'] = $codeVerifier;
+        }
+
+        $ch = curl_init('https://github.com/login/oauth/access_token');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json']);
         $response = curl_exec($ch);
         curl_close($ch);
