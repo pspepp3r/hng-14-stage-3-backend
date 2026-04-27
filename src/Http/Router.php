@@ -10,6 +10,7 @@ use App\Http\Middleware\AuthMiddleware;
 use App\Http\Middleware\RbacMiddleware;
 use App\Http\Middleware\VersionMiddleware;
 use App\Http\Middleware\RateLimitMiddleware;
+use App\Models\UserRole;
 use Exception;
 
 use function preg_match;
@@ -77,7 +78,7 @@ final class Router
                 }
 
                 if ($method === 'PATCH' && preg_match('#^/api/users/([a-f0-9\-]+)/role$#i', $path, $matches)) {
-                    $this->rbacMiddleware->enforce($user, 'admin');
+                    $this->rbacMiddleware->enforce($user, UserRole::ADMIN);
                     $this->authController->updateRole($matches[1], $user);
                     return;
                 }
@@ -92,7 +93,7 @@ final class Router
                 }
 
                 if ($method === 'POST' && $path === '/api/profiles') {
-                    $this->rbacMiddleware->enforce($user, 'admin');
+                    $this->rbacMiddleware->enforce($user, UserRole::ADMIN);
                     $this->profileController->create();
                     return;
                 }
@@ -115,7 +116,7 @@ final class Router
                 }
 
                 if ($method === 'DELETE' && preg_match('#^/api/profiles/([a-f0-9\-]+)$#i', $path, $matches)) {
-                    $this->rbacMiddleware->enforce($user, 'admin');
+                    $this->rbacMiddleware->enforce($user, UserRole::ADMIN);
                     $this->profileController->delete($matches[1]);
                     return;
                 }

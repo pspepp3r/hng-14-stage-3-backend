@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Response;
 use App\Services\AuthService;
+use App\Models\UserRole;
 use Exception;
 
 final class AuthController
@@ -153,22 +154,25 @@ final class AuthController
 
     public function updateRole(string $targetUserId, array $decodedToken): void
     {
-        $newRole = $_POST['role'] ?? \json_decode(\file_get_contents('php://input'))->role ?? null;
+        $payload = \json_decode(\file_get_contents('php://input'), true);
+        $newRoleStr = $_POST['role'] ?? $payload['role'] ?? null;
 
-        if (!in_array($newRole, ['admin', 'analyst'])) {
+        $newRole = UserRole::tryFrom($newRoleStr);
+
+        if (!$newRole) {
             Response::error('Invalid role. Must be admin or analyst', 400)->send();
             return;
         }
 
         $stmt = $this->authService->getDb()->prepare("UPDATE users SET role = ? WHERE id = UNHEX(REPLACE(?, '-', ''))");
-        $stmt->execute([$newRole, $targetUserId]);
+        $stmt->execute([$newRole->value, $targetUserId]);
 
         if ($stmt->rowCount() === 0) {
             Response::error('User not found or role unchanged', 404)->send();
             return;
         }
 
-        Response::success(['message' => "User role updated to $newRole"])->send();
+        Response::success(['message' => "User role updated to {$newRole->value}"])->send();
     }
 
     public function me(array $decodedToken): void
@@ -178,6 +182,12 @@ final class AuthController
             Response::error('User not found', 404)->send();
             return;
         }
+        
+        // Ensure role is converted to string for JSON output
+        if ($user['role'] instanceof UserRole) {
+            $user['role'] = $user['role']->value;
+        }
+        
         Response::success($user)->send();
     }
 

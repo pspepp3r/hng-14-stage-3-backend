@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Database\Connection;
+use App\Models\UserRole;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use PDO;
@@ -33,12 +34,13 @@ final class AuthService
     public function generateTokens(array $user): array
     {
         $now = time();
+        $role = $user['role'] instanceof UserRole ? $user['role']->value : $user['role'];
         
         $accessPayload = [
             'iat' => $now,
             'exp' => $now + $this->accessExpiry,
             'sub' => $user['id'],
-            'role' => $user['role']
+            'role' => $role
         ];
 
         $refreshPayload = [
@@ -75,7 +77,7 @@ final class AuthService
             $stmt = $this->db->prepare(
                 "INSERT INTO users (id, github_id, username, email, avatar_url, role) VALUES (UNHEX(REPLACE(?, '-', '')), ?, ?, ?, ?, ?)"
             );
-            $role = 'analyst'; // Default role
+            $role = UserRole::ANALYST->value; // Default role
             $stmt->execute([
                 $id,
                 $githubUser['id'],
@@ -93,6 +95,7 @@ final class AuthService
         $stmt->execute([$user['id']]);
 
         $user['id'] = $this->binaryToUuid($user['id']);
+        $user['role'] = UserRole::fromString($user['role']);
         return $user;
     }
 
@@ -103,6 +106,7 @@ final class AuthService
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($user) {
             $user['id'] = $this->binaryToUuid($user['id']);
+            $user['role'] = UserRole::fromString($user['role']);
             return $user;
         }
         return null;
