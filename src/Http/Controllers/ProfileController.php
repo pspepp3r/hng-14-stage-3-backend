@@ -160,6 +160,65 @@ final class ProfileController
         }
     }
 
+    public function export(): void
+    {
+        try {
+            $filters = [];
+            // Reuse filtering logic (DRY later if needed)
+            if (isset($_GET['gender'])) $filters['gender'] = (string)$_GET['gender'];
+            if (isset($_GET['country_id'])) $filters['country_id'] = (string)$_GET['country_id'];
+            if (isset($_GET['age_group'])) $filters['age_group'] = (string)$_GET['age_group'];
+            
+            $sortBy = $_GET['sort_by'] ?? 'created_at';
+            $order = $_GET['order'] ?? 'desc';
+
+            // Get all matching profiles without pagination limit for export (or a very high one)
+            $result = $this->profileService->getProfilesWithPagination(
+                $filters,
+                $sortBy,
+                $order,
+                1,
+                1000 // High limit for export
+            );
+
+            $profiles = $result['profiles'];
+            
+            $filename = "profiles_" . date('Y-m-d_H-i-s') . ".csv";
+            
+            header('Content-Type: text/csv');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            
+            $output = fopen('php://output', 'w');
+            
+            // CSV columns (in order): id, name, gender, gender_probability, age, age_group, country_id, country_name, country_probability, created_at
+            fputcsv($output, [
+                'id', 'name', 'gender', 'gender_probability', 'age', 'age_group', 
+                'country_id', 'country_name', 'country_probability', 'created_at'
+            ]);
+
+            foreach ($profiles as $profile) {
+                $data = $profile->toArray();
+                fputcsv($output, [
+                    $data['id'],
+                    $data['name'],
+                    $data['gender'],
+                    $data['gender_probability'],
+                    $data['age'],
+                    $data['age_group'],
+                    $data['country_id'],
+                    $data['country_name'],
+                    $data['country_probability'],
+                    $data['created_at']
+                ]);
+            }
+            
+            fclose($output);
+            exit;
+        } catch (Exception $e) {
+            $this->handleException($e);
+        }
+    }
+
     public function delete(string $id): void
     {
         try {

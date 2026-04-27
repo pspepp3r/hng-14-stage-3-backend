@@ -17,6 +17,26 @@ class Migration
 
     public function up(): void
     {
+        // Create users table for authentication and RBAC
+        $usersSql = <<<SQL
+        CREATE TABLE IF NOT EXISTS users (
+            id BINARY(16) PRIMARY KEY COMMENT 'UUID v7',
+            github_id VARCHAR(255) UNIQUE NOT NULL,
+            username VARCHAR(255) NOT NULL,
+            email VARCHAR(255),
+            avatar_url VARCHAR(255),
+            role ENUM('admin', 'analyst') DEFAULT 'analyst',
+            is_active BOOLEAN DEFAULT TRUE,
+            last_login_at TIMESTAMP NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_github_id (github_id),
+            INDEX idx_role (role)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        SQL;
+
+        $this->db->exec($usersSql);
+        echo "✓ Users table created successfully\n";
+
         // Create profiles table with UUID v7 support
         $sql = <<<SQL
         CREATE TABLE IF NOT EXISTS profiles (
@@ -46,6 +66,7 @@ class Migration
 
     public function down(): void
     {
+        $this->db->exec('DROP TABLE IF EXISTS users;');
         $this->db->exec('DROP TABLE IF EXISTS profiles;');
         echo "✓ Migration rolled back\n";
     }

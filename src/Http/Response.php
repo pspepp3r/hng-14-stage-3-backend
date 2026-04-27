@@ -59,35 +59,45 @@ final class Response implements JsonSerializable
 
     public function jsonSerialize(): array
     {
+        if ($this->status === 'error') {
+            return [
+                'status' => 'error',
+                'message' => $this->message,
+            ];
+        }
+
         $response = [
-            'status' => $this->status,
+            'status' => 'success',
         ];
 
         if ($this->message !== null) {
             $response['message'] = $this->message;
         }
 
-        if ($this->page !== null) {
+        if ($this->page !== null && $this->limit !== null && $this->total !== null) {
+            $totalPages = (int)\ceil($this->total / $this->limit);
             $response['page'] = $this->page;
-        }
-
-        if ($this->limit !== null) {
             $response['limit'] = $this->limit;
-        }
-
-        if ($this->total !== null) {
             $response['total'] = $this->total;
+            $response['total_pages'] = $totalPages;
+
+            // Build links
+            $uri = \parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+            $queryParams = $_GET;
+            
+            $buildUrl = function($p) use ($uri, $queryParams) {
+                $queryParams['page'] = $p;
+                return $uri . '?' . \http_build_query($queryParams);
+            };
+
+            $response['links'] = [
+                'self' => $buildUrl($this->page),
+                'next' => $this->page < $totalPages ? $buildUrl($this->page + 1) : null,
+                'prev' => $this->page > 1 ? $buildUrl($this->page - 1) : null,
+            ];
         }
 
         $response['data'] = $this->data;
-
-        // For errors, reorder to put message after status
-        if ($this->status === 'error') {
-            $response = [
-                'status' => $this->status,
-                'message' => $this->message,
-            ];
-        }
 
         return $response;
     }

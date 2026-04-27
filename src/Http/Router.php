@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace App\Http;
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\AuthController;
+use App\Http\Middleware\AuthMiddleware;
+use App\Http\Middleware\RbacMiddleware;
+use App\Http\Middleware\VersionMiddleware;
+use App\Http\Middleware\RateLimitMiddleware;
 use Exception;
 
 use function preg_match;
@@ -12,10 +17,20 @@ use function preg_match;
 final class Router
 {
     private ProfileController $profileController;
+    private AuthController $authController;
+    private AuthMiddleware $authMiddleware;
+    private RbacMiddleware $rbacMiddleware;
+    private VersionMiddleware $versionMiddleware;
+    private RateLimitMiddleware $rateLimitMiddleware;
 
     public function __construct()
     {
         $this->profileController = new ProfileController();
+        $this->authController = new AuthController();
+        $this->authMiddleware = new AuthMiddleware();
+        $this->rbacMiddleware = new RbacMiddleware();
+        $this->versionMiddleware = new VersionMiddleware();
+        $this->rateLimitMiddleware = new RateLimitMiddleware();
     }
 
     public function dispatch(string $method, string $uri): void
@@ -25,32 +40,73 @@ final class Router
         $path = \str_replace('/hng-14-task-2', '', $path);
 
         try {
-            // Check specific routes first
-            if ($method === 'POST' && $path === '/api/profiles') {
-                $this->profileController->create();
-                return;
+            // Auth Routes (Public but rate-limited)
+            if (str_starts_with($path, '/auth/')) {
+                $this->rateLimitMiddleware->handle('auth_' . $_SERVER['REMOTE_ADDR'], 10, 60);
+                
+                if ($method === 'GET' && $path === '/auth/github') {
+                    $this->authController->githubRedirect();
+                    return;
+                }
+                if ($method === 'GET' && $path === '/auth/github/callback') {
+                    $this->authController->githubCallback();
+                    return;
+                }
+                if ($method === 'POST' && $path === '/auth/refresh') {
+                    $this->authController->refresh();
+                    return;
+                }
+                if ($method === 'POST' && $path === '/auth/logout') {
+                    $this->authController->logout();
+                    return;
+                }
             }
 
-            // Natural language search route (must come before generic /{id} routes)
-            if ($method === 'GET' && $path === '/api/profiles/search') {
-                $this->profileController->search();
-                return;
-            }
+            // API Routes (Protected)
+            if (str_starts_with($path, '/api/')) {
+                // 1. Versioning
+                $this->versionMiddleware->handle();
 
-            if ($method === 'GET' && $path === '/api/profiles') {
-                $this->profileController->getAll();
-                return;
-            }
+                // 2. Authentication
+                $user = $this->authMiddleware->handle();
 
-            // Check parameterized routes (/{id})
-            if ($method === 'GET' && preg_match('#^/api/profiles/([a-f0-9\-]+)$#i', $path, $matches)) {
-                $this->profileController->getById($matches[1]);
-                return;
-            }
+                // 3. Rate Limiting (per user)
+                $this->rateLimitMiddleware->handle('user_' . $user['sub'], 60, 60);
 
-            if ($method === 'DELETE' && preg_match('#^/api/profiles/([a-f0-9\-]+)$#i', $path, $matches)) {
-                $this->profileController->delete($matches[1]);
-                return;
+                // Export route
+                if ($method === 'GET' && $path === '/api/profiles/export') {
+                    $this->profileController->export();
+                    return;
+                }
+
+                if ($method === 'POST' && $path === '/api/profiles') {
+                    $this->rbacMiddleware->enforce($user, 'admin');
+                    $this->profileController->create();
+                    return;
+                }
+
+                // Natural language search route (must come before generic /{id} routes)
+                if ($method === 'GET' && $path === '/api/profiles/search') {
+                    $this->profileController->search();
+                    return;
+                }
+
+                if ($method === 'GET' && $path === '/api/profiles') {
+                    $this->profileController->getAll();
+                    return;
+                }
+
+                // Check parameterized routes (/{id})
+                if ($method === 'GET' && preg_match('#^/api/profiles/([a-f0-9\-]+)$#i', $path, $matches)) {
+                    $this->profileController->getById($matches[1]);
+                    return;
+                }
+
+                if ($method === 'DELETE' && preg_match('#^/api/profiles/([a-f0-9\-]+)$#i', $path, $matches)) {
+                    $this->rbacMiddleware->enforce($user, 'admin');
+                    $this->profileController->delete($matches[1]);
+                    return;
+                }
             }
 
             // No route matched
@@ -60,7 +116,7 @@ final class Router
             \header('Content-Type: application/json');
             echo \json_encode([
                 'status' => 'error',
-                'message' => 'Internal server error',
+                'message' => APP_ENV === 'development' ? $e->getMessage() : 'Internal server error',
             ]);
         }
     }
