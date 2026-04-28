@@ -19,6 +19,10 @@ WORKDIR /var/www/html
 
 COPY . .
 
+RUN composer install --no-dev --optimize-autoloader
+
+RUN chown -R www-data:www-data /var/www/html
+
 # Copy the template into the image
 COPY nginx.conf.template /etc/nginx/sites-available/default.template
 
