@@ -38,35 +38,4 @@ RUN echo "#!/bin/sh\n\
 
 EXPOSE ${PORT}
 
-CMD ["/usr/local/bin/start-app.sh"]    set -e\n\
-    \n\
-    # 1. Substitute PORT into Apache config\n\
-    envsubst '\$PORT' < /etc/apache2/sites-available/000-default.conf.template > /etc/apache2/sites-available/000-default.conf\n\
-    \n\
-    # 2. Run migrations\n\
-    echo \"Running migrations...\"\n\
-    php /var/www/html/bin/migrate.php\n\
-    \n\
-    # 3. Start Apache (foreground)\n\
-    echo \"Starting Apache on port \$PORT...\"\n\
-    exec apache2-foreground" > /usr/local/bin/start-app.sh && \
-    chmod +x /usr/local/bin/start-app.sh
-
-CMD ["/usr/local/bin/start-app.sh"]    # 1. Substitute PORT into Nginx config\n\
-    envsubst '\$PORT' < /etc/nginx/sites-available/default.template > /etc/nginx/sites-enabled/default\n\
-    \n\
-    # 2. Run migrations\n\
-    echo \"Running migrations...\"\n\
-    php /var/www/html/bin/migrate.php\n\
-    \n\
-    # 3. Start PHP-FPM and FORCE it to listen on 127.0.0.1:9000\n\
-    echo \"Starting PHP-FPM...\"\n\
-    php-fpm -d \"listen=127.0.0.1:9000\" --daemonize\n\
-    \n\
-    # 4. Wait for PHP and start Nginx\n\
-    sleep 2\n\
-    echo \"Starting Nginx on port \$PORT...\"\n\
-    exec nginx -g 'daemon off;'" > /usr/local/bin/start-app.sh && \
-    chmod +x /usr/local/bin/start-app.sh
-
 CMD ["/usr/local/bin/start-app.sh"]
