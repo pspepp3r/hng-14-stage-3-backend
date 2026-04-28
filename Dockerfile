@@ -56,8 +56,7 @@ RUN echo "#!/bin/sh\n\
     echo \"Starting PHP-FPM and Nginx on port \$PORT...\"\n\
     \n\
     # Substitute PORT variable\n\
-    envsubst '\${PORT}' < /etc/nginx/sites-available/default.template > /etc/nginx/sites-enabled/default\n\
-    \n\
+    envsubst '${PORT}' < /etc/nginx/sites-available/default.template > /etc/nginx/sites-enabled/default\n\
     # Start PHP-FPM in background\n\
     php-fpm --daemonize\n\
     \n\
