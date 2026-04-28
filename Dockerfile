@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     nginx \
+    gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-install pdo_mysql zip
@@ -21,10 +22,10 @@ RUN composer install --no-dev --optimize-autoloader
 RUN mkdir -p storage/logs storage/ratelimit \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/vendor /var/www/html/public
 
-# Configure Nginx
+# Configure Nginx (template)
 RUN echo 'server {\n\
-    listen ${PORT} default_server;\n\
-    listen [::]:${PORT} default_server;\n\
+    listen $${PORT} default_server;\n\
+    listen [::]:$${PORT} default_server;\n\
     server_name _;\n\
     root /var/www/html/public;\n\
     index index.php;\n\
@@ -43,7 +44,7 @@ RUN echo 'server {\n\
     location ~ /\\. {\n\
     deny all;\n\
     }\n\
-    }' > /etc/nginx/sites-available/default
+    }' > /etc/nginx/sites-available/default.template
 
 # Create startup script for both PHP-FPM and Nginx
 RUN echo "#!/bin/sh\n\
@@ -53,6 +54,9 @@ RUN echo "#!/bin/sh\n\
     php bin/migrate.php\n\
     \n\
     echo \"Starting PHP-FPM and Nginx on port \$PORT...\"\n\
+    \n\
+    # Substitute PORT variable in nginx config template\n\
+    envsubst '\\$PORT' < /etc/nginx/sites-available/default.template > /etc/nginx/sites-available/default\n\
     \n\
     # Start PHP-FPM in background\n\
     php-fpm --daemonize\n\
