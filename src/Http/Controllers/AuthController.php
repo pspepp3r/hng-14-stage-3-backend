@@ -78,17 +78,24 @@ final class AuthController
                 Response::success($tokens)->send();
             } else {
                 // Set HTTP-only cookies for Web
+                // For cross-site cookies (different domains), use SameSite=None with Secure
+                $isSecure = isset($_SERVER['HTTPS']) || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+
                 setcookie('access_token', $tokens['access_token'], [
                     'expires' => time() + (int)getenv('JWT_ACCESS_EXPIRY'),
                     'path' => '/',
+                    'domain' => '',
+                    'secure' => $isSecure,
                     'httponly' => true,
-                    'samesite' => 'Lax'
+                    'samesite' => 'None'
                 ]);
                 setcookie('refresh_token', $tokens['refresh_token'], [
                     'expires' => time() + (int)getenv('JWT_REFRESH_EXPIRY'),
                     'path' => '/',
+                    'domain' => '',
+                    'secure' => $isSecure,
                     'httponly' => true,
-                    'samesite' => 'Lax'
+                    'samesite' => 'None'
                 ]);
 
                 // Redirect to frontend dashboard (SPA hash routing)
@@ -125,17 +132,21 @@ final class AuthController
 
         // Update cookies if they exist
         if (isset($_COOKIE['refresh_token'])) {
+            $isSecure = isset($_SERVER['HTTPS']) || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+
             setcookie('access_token', $tokens['access_token'], [
                 'expires' => time() + (int)getenv('JWT_ACCESS_EXPIRY'),
                 'path' => '/',
+                'secure' => $isSecure,
                 'httponly' => true,
-                'samesite' => 'Lax'
+                'samesite' => 'None'
             ]);
             setcookie('refresh_token', $tokens['refresh_token'], [
                 'expires' => time() + (int)getenv('JWT_REFRESH_EXPIRY'),
                 'path' => '/',
+                'secure' => $isSecure,
                 'httponly' => true,
-                'samesite' => 'Lax'
+                'samesite' => 'None'
             ]);
         }
 
@@ -144,9 +155,21 @@ final class AuthController
 
     public function logout(): void
     {
+        $isSecure = isset($_SERVER['HTTPS']) || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+
         // Clear cookies
-        setcookie('access_token', '', time() - 3600, '/');
-        setcookie('refresh_token', '', time() - 3600, '/');
+        setcookie('access_token', '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => $isSecure,
+            'samesite' => 'None'
+        ]);
+        setcookie('refresh_token', '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => $isSecure,
+            'samesite' => 'None'
+        ]);
 
         Response::success(['message' => 'Logged out successfully'])->send();
     }
