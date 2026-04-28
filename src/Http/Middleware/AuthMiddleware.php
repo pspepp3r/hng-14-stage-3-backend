@@ -37,8 +37,11 @@ final class AuthMiddleware
 
     private function getBearerToken(): ?string
     {
-        $headers = \getallheaders();
-        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? null;
+        // Read from $_SERVER for Nginx/Apache compatibility
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ??
+            $_SERVER['Authorization'] ??
+            $_SERVER['CONTENT_TYPE'] ??
+            null;
 
         if ($authHeader && \preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
             return $matches[1];
