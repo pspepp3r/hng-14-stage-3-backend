@@ -10,11 +10,14 @@ final class VersionMiddleware
 {
     public function handle(): void
     {
-        $headers = \getallheaders();
-        $version = $headers['X-API-Version'] ?? $headers['x-api-version'] ?? null;
+        // Read from $_SERVER for Nginx/Apache compatibility
+        $version = $_SERVER['HTTP_X_API_VERSION'] ??
+            $_SERVER['X-API-Version'] ??
+            $_SERVER['X_API_VERSION'] ??
+            null;
 
         if ($version !== '1') {
-            Response::error('API version header required', 400)->send();
+            Response::error('API version header required', 401)->send();
             exit;
         }
     }
