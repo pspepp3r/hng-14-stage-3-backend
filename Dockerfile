@@ -1,6 +1,6 @@
-FROM php:8.3-apache
+FROM php:8.3-cli
 
-# Install system dependencies (same as original, plus Apache mod_rewrite)
+# Install system dependencies (same as original)
 RUN apt-get update && apt-get install -y \
     libzip-dev \
     zip \
@@ -8,10 +8,7 @@ RUN apt-get update && apt-get install -y \
     gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
-# Enable Apache modules
-RUN a2enmod rewrite
-
-# Install PHP extensions (same as original)
+# Install PHP extensions
 RUN docker-php-ext-install pdo_mysql zip
 
 # Install Composer
@@ -26,15 +23,22 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader
 RUN chown -R www-data:www-data /var/www/html
 
-# Copy Apache config template
-COPY apache.conf.template /etc/apache2/sites-available/000-default.conf.template
-
-# Disable default site, we'll use our template later
-RUN rm -f /etc/apache2/sites-enabled/000-default.conf
-
 # Create the startup script
 RUN echo "#!/bin/sh\n\
     set -e\n\
+    \n\
+    # Run migrations\n\
+    echo \"Running migrations...\"\n\
+    php /var/www/html/bin/migrate.php\n\
+    \n\
+    # Start PHP built-in server on port \$PORT, serving /public\n\
+    echo \"Starting PHP server on port \$PORT...\"\n\
+    exec php -S 0.0.0.0:\$PORT -t /var/www/html/public" > /usr/local/bin/start-app.sh && \
+    chmod +x /usr/local/bin/start-app.sh
+
+EXPOSE ${PORT}
+
+CMD ["/usr/local/bin/start-app.sh"]    set -e\n\
     \n\
     # 1. Substitute PORT into Apache config\n\
     envsubst '\$PORT' < /etc/apache2/sites-available/000-default.conf.template > /etc/apache2/sites-available/000-default.conf\n\
