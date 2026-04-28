@@ -5,6 +5,9 @@ server {
     root /var/www/html/public;
     index index.php;
 
+    error_log /dev/stdout info;
+    access_log /dev/stdout;
+
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
@@ -14,9 +17,5 @@ server {
         fastcgi_index index.php;
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-    }
-
-    location ~ /\. {
-        deny all;
     }
 }
