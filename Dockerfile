@@ -24,8 +24,8 @@ RUN mkdir -p storage/logs storage/ratelimit \
 
 # Configure Nginx (template)
 RUN echo 'server {\n\
-    listen $${PORT} default_server;\n\
-    listen [::]:$${PORT} default_server;\n\
+    listen ${PORT} default_server;\n\
+    listen [::]:${PORT} default_server;\n\
     server_name _;\n\
     root /var/www/html/public;\n\
     index index.php;\n\
@@ -46,7 +46,7 @@ RUN echo 'server {\n\
     }\n\
     }' > /etc/nginx/sites-available/default.template
 
-# Create startup script for both PHP-FPM and Nginx
+# Create startup script 
 RUN echo "#!/bin/sh\n\
     set -e\n\
     \n\
@@ -55,8 +55,8 @@ RUN echo "#!/bin/sh\n\
     \n\
     echo \"Starting PHP-FPM and Nginx on port \$PORT...\"\n\
     \n\
-    # Substitute PORT variable in nginx config template\n\
-    envsubst '\\$PORT' < /etc/nginx/sites-available/default.template > /etc/nginx/sites-available/default\n\
+    # Substitute PORT variable\n\
+    envsubst '\${PORT}' < /etc/nginx/sites-available/default.template > /etc/nginx/sites-enabled/default\n\
     \n\
     # Start PHP-FPM in background\n\
     php-fpm --daemonize\n\
