@@ -34,7 +34,7 @@ final class AuthController
             'scope' => 'read:user user:email'
         ]);
 
-        header("Location: $url");
+        header("Location: $url", true, 302);
         exit;
     }
 
