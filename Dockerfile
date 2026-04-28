@@ -1,15 +1,17 @@
-FROM php:8.3-fpm
+FROM php:8.3-apache
 
-# Install system dependencies
+# Install system dependencies (same as original, plus Apache mod_rewrite)
 RUN apt-get update && apt-get install -y \
     libzip-dev \
     zip \
     unzip \
-    nginx \
     gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
+# Enable Apache modules
+RUN a2enmod rewrite
+
+# Install PHP extensions (same as original)
 RUN docker-php-ext-install pdo_mysql zip
 
 # Install Composer
@@ -24,17 +26,29 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader
 RUN chown -R www-data:www-data /var/www/html
 
-# Copy the Nginx template
-COPY nginx.conf.template /etc/nginx/sites-available/default.template
+# Copy Apache config template
+COPY apache.conf.template /etc/apache2/sites-available/000-default.conf.template
 
-# Remove the default Nginx config to prevent conflicts
-RUN rm -f /etc/nginx/sites-enabled/default
+# Disable default site, we'll use our template later
+RUN rm -f /etc/apache2/sites-enabled/000-default.conf
 
 # Create the startup script
 RUN echo "#!/bin/sh\n\
     set -e\n\
     \n\
-    # 1. Substitute PORT into Nginx config\n\
+    # 1. Substitute PORT into Apache config\n\
+    envsubst '\$PORT' < /etc/apache2/sites-available/000-default.conf.template > /etc/apache2/sites-available/000-default.conf\n\
+    \n\
+    # 2. Run migrations\n\
+    echo \"Running migrations...\"\n\
+    php /var/www/html/bin/migrate.php\n\
+    \n\
+    # 3. Start Apache (foreground)\n\
+    echo \"Starting Apache on port \$PORT...\"\n\
+    exec apache2-foreground" > /usr/local/bin/start-app.sh && \
+    chmod +x /usr/local/bin/start-app.sh
+
+CMD ["/usr/local/bin/start-app.sh"]    # 1. Substitute PORT into Nginx config\n\
     envsubst '\$PORT' < /etc/nginx/sites-available/default.template > /etc/nginx/sites-enabled/default\n\
     \n\
     # 2. Run migrations\n\
