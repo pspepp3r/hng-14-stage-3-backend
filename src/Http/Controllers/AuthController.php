@@ -84,10 +84,20 @@ final class AuthController
                 // In development on localhost, use Lax; in production, use None (with Secure)
                 $sameSite = $isDevelopment ? 'Lax' : 'None';
 
+                // Set domain to allow cookies across subdomains in production
+                $cookieDomain = '';
+                if (!$isDevelopment) {
+                    // Extract parent domain for production (e.g., .up.railway.app)
+                    $host = $_SERVER['HTTP_HOST'] ?? '';
+                    if (preg_match('/(\.[a-z]+\.[a-z]+)$/', $host, $matches)) {
+                        $cookieDomain = $matches[1];
+                    }
+                }
+
                 setcookie('access_token', $tokens['access_token'], [
                     'expires' => time() + (int)getenv('JWT_ACCESS_EXPIRY'),
                     'path' => '/',
-                    'domain' => '',
+                    'domain' => $cookieDomain,
                     'secure' => $isSecure,
                     'httponly' => true,
                     'samesite' => $sameSite
@@ -95,7 +105,7 @@ final class AuthController
                 setcookie('refresh_token', $tokens['refresh_token'], [
                     'expires' => time() + (int)getenv('JWT_REFRESH_EXPIRY'),
                     'path' => '/',
-                    'domain' => '',
+                    'domain' => $cookieDomain,
                     'secure' => $isSecure,
                     'httponly' => true,
                     'samesite' => $sameSite
@@ -139,9 +149,19 @@ final class AuthController
             $isDevelopment = getenv('APP_ENV') === 'development';
             $sameSite = $isDevelopment ? 'Lax' : 'None';
 
+            // Set domain to allow cookies across subdomains in production
+            $cookieDomain = '';
+            if (!$isDevelopment) {
+                $host = $_SERVER['HTTP_HOST'] ?? '';
+                if (preg_match('/(\.[a-z]+\.[a-z]+)$/', $host, $matches)) {
+                    $cookieDomain = $matches[1];
+                }
+            }
+
             setcookie('access_token', $tokens['access_token'], [
                 'expires' => time() + (int)getenv('JWT_ACCESS_EXPIRY'),
                 'path' => '/',
+                'domain' => $cookieDomain,
                 'secure' => $isSecure,
                 'httponly' => true,
                 'samesite' => $sameSite
@@ -149,6 +169,7 @@ final class AuthController
             setcookie('refresh_token', $tokens['refresh_token'], [
                 'expires' => time() + (int)getenv('JWT_REFRESH_EXPIRY'),
                 'path' => '/',
+                'domain' => $cookieDomain,
                 'secure' => $isSecure,
                 'httponly' => true,
                 'samesite' => $sameSite
@@ -164,16 +185,27 @@ final class AuthController
         $isDevelopment = getenv('APP_ENV') === 'development';
         $sameSite = $isDevelopment ? 'Lax' : 'None';
 
+        // Set domain to allow cookies across subdomains in production
+        $cookieDomain = '';
+        if (!$isDevelopment) {
+            $host = $_SERVER['HTTP_HOST'] ?? '';
+            if (preg_match('/(\.[a-z]+\.[a-z]+)$/', $host, $matches)) {
+                $cookieDomain = $matches[1];
+            }
+        }
+
         // Clear cookies
         setcookie('access_token', '', [
             'expires' => time() - 3600,
             'path' => '/',
+            'domain' => $cookieDomain,
             'secure' => $isSecure,
             'samesite' => $sameSite
         ]);
         setcookie('refresh_token', '', [
             'expires' => time() - 3600,
             'path' => '/',
+            'domain' => $cookieDomain,
             'secure' => $isSecure,
             'samesite' => $sameSite
         ]);
