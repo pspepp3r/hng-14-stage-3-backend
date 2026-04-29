@@ -1,0 +1,23 @@
+# Listen on the dynamic port
+Listen ${PORT}
+
+<VirtualHost *:${PORT}>
+    ServerName _
+    DocumentRoot /var/www/html/public
+
+    ErrorLog /dev/stdout
+    CustomLog /dev/stdout combined
+
+    <Directory /var/www/html/public>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+        FallbackResource /index.php
+    </Directory>
+
+    # Pass custom headers and proxy info to PHP
+    SetEnvIf X-API-Version "(.*)" HTTP_X_API_VERSION=$1
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+    SetEnvIf X-Forwarded-Proto "(.*)" HTTPS=on
+    SetEnvIf X-Forwarded-For "(.*)" REMOTE_ADDR=$1
+</VirtualHost>
