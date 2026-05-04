@@ -1,0 +1,11 @@
+vendor/
+.env
+.git/
+.idea/
+tests/
+phpunit.xml
+.gitignore
+Dockerfile
+docker-compose.yml
+storage/logs/*.log
+storage/ratelimit/*.json
