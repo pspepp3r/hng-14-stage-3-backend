@@ -1,0 +1,51 @@
+; Production PHP Configuration for Docker
+
+[PHP]
+; Execution
+max_execution_time = 30
+max_input_time = 60
+memory_limit = 256M
+post_max_size = 100M
+upload_max_filesize = 100M
+
+; Display
+display_errors = Off
+display_startup_errors = Off
+log_errors = On
+log_errors_max_len = 1024
+ignore_repeated_errors = On
+ignore_repeated_source = Off
+report_memleaks = On
+report_zend_debug = Off
+track_errors = Off
+docref_root = 0
+docref_ext = 0
+
+; Error Handling
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+error_log = /var/log/php_errors.log
+
+; Session
+session.save_handler = files
+session.name = PHPSESSID
+session.auto_start = 0
+session.gc_probability = 1
+session.gc_divisor = 1000
+session.gc_maxlifetime = 1440
+session.cookie_lifetime = 0
+session.cookie_path = /
+session.cookie_domain =
+session.cookie_httponly = 1
+session.cookie_samesite = Lax
+
+; Security
+expose_php = Off
+allow_url_include = Off
+allow_url_fopen = Off
+default_charset = UTF-8
+
+; Date/Time
+date.timezone = UTC
+
+; Limits
+max_input_vars = 5000
