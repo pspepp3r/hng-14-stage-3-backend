@@ -24,7 +24,6 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # 5. Copy composer files and install dependencies
 COPY composer.json ./
-COPY composer.lock ./ 
 
 RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
 
