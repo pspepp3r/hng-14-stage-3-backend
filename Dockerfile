@@ -38,7 +38,7 @@ RUN a2enmod rewrite && \
     a2enmod http2
 
 # Copy production PHP configuration
-COPY php.ini-production "$PHP_INI_DIR/php.ini"
+COPY docker/php.ini-production "$PHP_INI_DIR/php.ini"
 
 # Configure Opcache for production
 RUN echo "opcache.enable=1" >> "$PHP_INI_DIR/conf.d/docker-php-ext-opcache.ini" && \
