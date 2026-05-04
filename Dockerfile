@@ -5,11 +5,12 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/000-default.conf
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
-# 2. Enable Apache mod_rewrite
-RUN a2enmod rewrite
+# 2. Enable Apache mod_rewrite and fix MPM error
+RUN a2dismod mpm_event mpm_worker || true \
+    && a2enmod mpm_prefork rewrite
 
 # 3. Install system dependencies and PHP extensions
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libzip-dev \
     zip \
     unzip \
@@ -23,8 +24,7 @@ WORKDIR /var/www/html
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # 5. Copy composer files and install dependencies
-COPY composer.json ./
-
+COPY composer.json composer.lock* ./
 RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
 
 # 6. Copy the rest of the application
@@ -37,3 +37,5 @@ RUN mkdir -p storage/logs storage/ratelimit \
 
 # 8. Final permissions for Apache
 RUN chown -R www-data:www-data /var/www/html
+
+EXPOSE 80
