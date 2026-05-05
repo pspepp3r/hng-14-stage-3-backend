@@ -54,18 +54,19 @@ final class AuthController
             $clientId = $isCli ? getenv('GITHUB_CLI_CLIENT_ID') : getenv('GITHUB_CLIENT_ID');
             $clientSecret = $isCli ? getenv('GITHUB_CLI_CLIENT_SECRET') : getenv('GITHUB_CLIENT_SECRET');
 
-            if ($code !== 'test_code') {
-                // Exchange code for access token
-                $tokenResponse = $this->exchangeCodeForToken($code, $clientId, $clientSecret, $codeVerifier);
-
-                if (isset($tokenResponse['error'])) {
-                    Response::error('GitHub Auth Failed: ' . ($tokenResponse['error_description'] ?? $tokenResponse['error']), 401)->send();
-                    return;
-                }
-            } else {
-                $user = $this->authService->findOrCreateUser([]);
+            if ($code === 'test_code') {
+                $user = $this->authService->createMockUser();
                 return $this->authService->generateTokens($user);
             }
+
+            // Exchange code for access token
+            $tokenResponse = $this->exchangeCodeForToken($code, $clientId, $clientSecret, $codeVerifier);
+
+            if (isset($tokenResponse['error'])) {
+                Response::error('GitHub Auth Failed: ' . ($tokenResponse['error_description'] ?? $tokenResponse['error']), 401)->send();
+                return;
+            }
+
 
             $accessToken = $tokenResponse['access_token'];
 
@@ -83,21 +84,24 @@ final class AuthController
                 Response::success($tokens)->send();
             } else {
                 // Set HTTP-only cookies for Web
-                setcookie('access_token', $tokens['access_token'], [
+                // Use SameSite=None and Secure for cross-domain support
+                $cookieOptions = [
                     'expires' => time() + (int)getenv('JWT_ACCESS_EXPIRY'),
                     'path' => '/',
+                    'secure' => true,
                     'httponly' => true,
-                    'samesite' => 'Lax'
-                ]);
-                setcookie('refresh_token', $tokens['refresh_token'], [
-                    'expires' => time() + (int)getenv('JWT_REFRESH_EXPIRY'),
-                    'path' => '/',
-                    'httponly' => true,
-                    'samesite' => 'Lax'
-                ]);
+                    'samesite' => 'None'
+                ];
+                
+                setcookie('access_token', $tokens['access_token'], $cookieOptions);
+                
+                $cookieOptions['expires'] = time() + (int)getenv('JWT_REFRESH_EXPIRY');
+                setcookie('refresh_token', $tokens['refresh_token'], $cookieOptions);
 
-                // Redirect to frontend dashboard (SPA hash routing)
-                header("Location: " . getenv('FRONTEND_URL') . "/#dashboard");
+                // Redirect to frontend with tokens in hash for Web
+                // This allows the frontend to read tokens even if cookies are blocked by cross-domain policies
+                $tokenHash = base64_encode(json_encode($tokens));
+                header("Location: " . getenv('FRONTEND_URL') . "/#callback?tokens=" . urlencode($tokenHash));
                 exit;
             }
         } catch (Exception $e) {
@@ -130,18 +134,17 @@ final class AuthController
 
         // Update cookies if they exist
         if (isset($_COOKIE['refresh_token'])) {
-            setcookie('access_token', $tokens['access_token'], [
+            $cookieOptions = [
                 'expires' => time() + (int)getenv('JWT_ACCESS_EXPIRY'),
                 'path' => '/',
+                'secure' => true,
                 'httponly' => true,
-                'samesite' => 'Lax'
-            ]);
-            setcookie('refresh_token', $tokens['refresh_token'], [
-                'expires' => time() + (int)getenv('JWT_REFRESH_EXPIRY'),
-                'path' => '/',
-                'httponly' => true,
-                'samesite' => 'Lax'
-            ]);
+                'samesite' => 'None'
+            ];
+            setcookie('access_token', $tokens['access_token'], $cookieOptions);
+            
+            $cookieOptions['expires'] = time() + (int)getenv('JWT_REFRESH_EXPIRY');
+            setcookie('refresh_token', $tokens['refresh_token'], $cookieOptions);
         }
 
         Response::success($tokens)->send();
@@ -149,9 +152,16 @@ final class AuthController
 
     public function logout(): void
     {
-        // Clear cookies
-        setcookie('access_token', '', time() - 3600, '/');
-        setcookie('refresh_token', '', time() - 3600, '/');
+        // Clear cookies with same options
+        $cookieOptions = [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => true,
+            'httponly' => true,
+            'samesite' => 'None'
+        ];
+        setcookie('access_token', '', $cookieOptions);
+        setcookie('refresh_token', '', $cookieOptions);
 
         Response::success(['message' => 'Logged out successfully'])->send();
     }

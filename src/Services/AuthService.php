@@ -112,21 +112,37 @@ final class AuthService
         return null;
     }
 
-    public function createMockUser()
+    public function createMockUser(): mixed
     {
-        $id = $this->generateUuidV7();
-        $stmt = $this->db->prepare(
-            "INSERT INTO users (id, github_id, username, email, avatar_url, role) VALUES (UNHEX(REPLACE(?, '-', '')), ?, ?, ?, ?, ?)"
-        );
-        $role = $this->checkForUserEntry() ? UserRole::ANALYST : UserRole::ADMIN->value;
-        $stmt->execute([
-            $id,
-            0000001,
-            'Thanos Bot',
-            'thanosbot@evil.com',
-            '',
-            $role
-        ]);
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE github_id = ?");
+        $stmt->execute([0000001]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user) {
+            $id = $this->generateUuidV7();
+            $stmt = $this->db->prepare(
+                "INSERT INTO users (id, github_id, username, email, avatar_url, role) VALUES (UNHEX(REPLACE(?, '-', '')), ?, ?, ?, ?, ?)"
+            );
+            $role = $this->checkForUserEntry() ? UserRole::ANALYST : UserRole::ADMIN->value;
+            $stmt->execute([
+                $id,
+                0000001,
+                'Thanos Bot',
+                'thanosbot@evil.com',
+                '',
+                $role
+            ]);
+
+            return $this->findUserById($id);
+        }
+
+        // Update last login
+        $stmt = $this->db->prepare("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?");
+        $stmt->execute([$user['id']]);
+
+        $user['id'] = $this->binaryToUuid($user['id']);
+        $user['role'] = UserRole::fromString($user['role']);
+        return $user;
     }
 
     private function binaryToUuid(string $binary): string
