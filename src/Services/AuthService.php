@@ -77,7 +77,7 @@ final class AuthService
             $stmt = $this->db->prepare(
                 "INSERT INTO users (id, github_id, username, email, avatar_url, role) VALUES (UNHEX(REPLACE(?, '-', '')), ?, ?, ?, ?, ?)"
             );
-            $role = $this->checkForUserEntry() ? UserRole::ANALYST : UserRole::ADMIN->value;
+            $role = $this->checkForUserEntry() ? UserRole::ANALYST->value : UserRole::ADMIN->value;
             $stmt->execute([
                 $id,
                 $githubUser['id'],
@@ -123,7 +123,7 @@ final class AuthService
             $stmt = $this->db->prepare(
                 "INSERT INTO users (id, github_id, username, email, avatar_url, role) VALUES (UNHEX(REPLACE(?, '-', '')), ?, ?, ?, ?, ?)"
             );
-            $role = $this->checkForUserEntry() ? UserRole::ANALYST : UserRole::ADMIN->value;
+            $role = $this->checkForUserEntry() ? UserRole::ANALYST->value : UserRole::ADMIN->value;
             $stmt->execute([
                 $id,
                 0000001,

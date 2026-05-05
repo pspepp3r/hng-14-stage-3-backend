@@ -34,17 +34,17 @@ final class Router
         $this->rateLimitMiddleware = new RateLimitMiddleware();
     }
 
-    public function dispatch(string $method, string $uri): void
+    public function dispatch(string $method, string $uri)
     {
         // Parse URI (remove query string)
         $path = \parse_url($uri, PHP_URL_PATH);
-        $path = \str_replace('/hng-14-task-2', '', $path);
+        $path = \str_replace('/hng-14-task-3', '', $path);
 
         try {
             // Auth Routes (Public but rate-limited)
             if (str_starts_with($path, '/auth/')) {
                 $this->rateLimitMiddleware->handle('auth_' . $_SERVER['REMOTE_ADDR'], 10, 60);
-                
+
                 if ($method === 'GET' && $path === '/auth/github') {
                     $this->authController->githubRedirect();
                     return;

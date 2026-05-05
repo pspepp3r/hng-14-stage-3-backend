@@ -56,7 +56,9 @@ final class AuthController
 
             if ($code === 'test_code') {
                 $user = $this->authService->createMockUser();
-                return $this->authService->generateTokens($user);
+                $tokens = $this->authService->generateTokens($user);
+                Response::success($tokens)->send();
+                return;
             }
 
             // Exchange code for access token
@@ -92,9 +94,9 @@ final class AuthController
                     'httponly' => true,
                     'samesite' => 'None'
                 ];
-                
+
                 setcookie('access_token', $tokens['access_token'], $cookieOptions);
-                
+
                 $cookieOptions['expires'] = time() + (int)getenv('JWT_REFRESH_EXPIRY');
                 setcookie('refresh_token', $tokens['refresh_token'], $cookieOptions);
 
@@ -142,7 +144,7 @@ final class AuthController
                 'samesite' => 'None'
             ];
             setcookie('access_token', $tokens['access_token'], $cookieOptions);
-            
+
             $cookieOptions['expires'] = time() + (int)getenv('JWT_REFRESH_EXPIRY');
             setcookie('refresh_token', $tokens['refresh_token'], $cookieOptions);
         }
